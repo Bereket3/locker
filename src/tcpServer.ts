@@ -76,18 +76,28 @@ function handlePacket(raw: string): void {
         const socket = getSocket(imei);
         if (socket) {
           const data = fields.join(",");
-          const buf = buildCommand(imei, "L0", data);
-          socket.write(buf);
-          console.log(`[L0] ${imei} echoing challenge back: L0,${data}`);
+          socket.write(buildCommand(imei, "L0", data));
+          console.log(`[L0] ${imei} echoing challenge: L0,${data}`);
         }
       }
       break;
     }
 
     case "L1": {
-      const state = upsertState(imei, { locked: true });
-      console.log(`[L1] ${imei} locked ✓`);
-      broadcast({ event: "locked", state });
+      const status = fields[0];
+
+      if (status === "1") {
+        const state = upsertState(imei, { locked: true });
+        console.log(`[L1] ${imei} locked ✓`);
+        broadcast({ event: "locked", state });
+      } else {
+        const socket = getSocket(imei);
+        if (socket) {
+          const data = fields.join(",");
+          socket.write(buildCommand(imei, "L1", data));
+          console.log(`[L1] ${imei} echoing challenge: L1,${data}`);
+        }
+      }
       break;
     }
 
