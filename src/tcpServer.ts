@@ -30,16 +30,25 @@ function handlePacket(raw: string): void {
 
   switch (cmd) {
     case "Q0": {
-      const { signal, batteryVoltage, locked } = parseSignIn(fields);
+      const batteryVoltage = parseInt(fields[0] ?? "0") / 100;
+
       const state = upsertState(imei, {
-        signal,
+        signal: 0,
         batteryVoltage,
-        locked,
+        locked: true,
         connectedAt: new Date().toISOString(),
       });
+
       console.log(
-        `[Q0] Lock ${imei} signed in | signal=${signal}/31 | battery=${batteryVoltage.toFixed(2)}V`,
+        `[Q0] Lock ${imei} signed in | battery=${batteryVoltage.toFixed(2)}V`,
       );
+
+      const socket = getSocket(imei);
+      if (socket) {
+        socket.write(buildCommand(imei, "Q0"));
+        console.log(`[Q0] acknowledged`);
+      }
+
       broadcast({ event: "connected", state });
       break;
     }
@@ -68,6 +77,7 @@ function handlePacket(raw: string): void {
 
     case "L0": {
       const status = fields[0];
+      console.log(`[L0] status=${status} fields=${fields.join(",")}`);
 
       if (status === "1") {
         const state = upsertState(imei, { locked: false });
@@ -77,9 +87,8 @@ function handlePacket(raw: string): void {
         const socket = getSocket(imei);
         if (socket) {
           const data = fields.join(",");
-          const buf = buildCommand(imei, "L0", data);
-          socket.write(buf);
-          console.log(`[L0] ${imei} echoing: L0,${data}`);
+          socket.write(buildCommand(imei, "L0", data));
+          console.log(`[L0] ${imei} echoed: L0,${data}`);
         }
       }
       break;
