@@ -5,6 +5,7 @@ import {
   getState,
   getAllStates,
   subscribe,
+  getSocket,
 } from "./lockStore.js";
 import { sendCommand } from "./tcpServer.js";
 import { signalLabel } from "./protocol.js";
@@ -36,6 +37,46 @@ api.post("/locks/:imei/unlock", (c) => {
   if (!result.ok) return c.json({ error: result.error }, 503);
   return c.json({ ok: true, message: `Unlock sent to ${imei}` });
 });
+
+// routes.ts — temporary debug endpoint
+api.post("/locks/:imei/unlock/:variant", async (c) => {
+  const { imei, variant } = c.req.param();
+  const socket = getSocket(imei);
+  if (!socket) return c.json({ error: "not connected" }, 503);
+
+  const commands: Record<string, string> = {
+    a: `\xFF\xFF*CMDS,OM,${imei},${getTimestamp()},L0,1#\n`,
+    b: `\xFF\xFF*CMDS,OM,${imei},${getTimestamp()},L0,0,1#\n`,
+    c: `\xFF\xFF*CMDS,OM,${imei},${getTimestamp()},L0,0000#\n`,
+    d: `\xFF\xFF*CMDS,OM,${imei},${getTimestamp()},L0,1234#\n`,
+    e: `\xFF\xFF*CMDS,OM,${imei},${getTimestamp()},L0,0,0,0#\n`,
+  };
+
+  const cmd = commands[variant];
+  if (!cmd) return c.json({ error: "unknown variant" }, 400);
+
+  const buf = Buffer.concat([
+    Buffer.from([0xff, 0xff]),
+    Buffer.from(cmd.slice(2), "ascii"),
+  ]);
+  socket.write(buf);
+  console.log(
+    `[DEBUG] sent variant ${variant}: ${cmd.replace(/\xFF/g, "<FF>")}`,
+  );
+  return c.json({ ok: true, sent: cmd });
+});
+
+function getTimestamp() {
+  const n = new Date();
+  return [
+    String(n.getFullYear()).slice(2),
+    String(n.getMonth() + 1).padStart(2, "0"),
+    String(n.getDate()).padStart(2, "0"),
+    String(n.getHours()).padStart(2, "0"),
+    String(n.getMinutes()).padStart(2, "0"),
+    String(n.getSeconds()).padStart(2, "0"),
+  ].join("");
+}
 
 // POST /locks/:imei/lock — send L1
 api.post("/locks/:imei/lock", (c) => {

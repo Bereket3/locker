@@ -47,7 +47,6 @@ export function parsePacket(raw: string): ParsedPacket | null {
 // ─── Command builder ──────────────────────────────────────────────────────────
 
 export function buildCommand(imei: string, cmd: CmdCode, data = ""): Buffer {
-  // Use real timestamp — some firmware versions reject 000000000000
   const now = new Date();
   const ts = [
     String(now.getFullYear()).slice(2),
@@ -56,7 +55,7 @@ export function buildCommand(imei: string, cmd: CmdCode, data = ""): Buffer {
     String(now.getHours()).padStart(2, "0"),
     String(now.getMinutes()).padStart(2, "0"),
     String(now.getSeconds()).padStart(2, "0"),
-  ].join(""); // e.g. 260607143022
+  ].join("");
 
   const body = data
     ? `*CMDS,OM,${imei},${ts},${cmd},${data}#\n`

@@ -66,20 +66,19 @@ function handlePacket(raw: string): void {
     }
 
     case "L0": {
-      const unlockStatus = fields[0];
+      const status = fields[0];
 
-      if (unlockStatus === "1") {
+      if (status === "1") {
         const state = upsertState(imei, { locked: false });
         console.log(`[L0] ${imei} unlocked ✓`);
         broadcast({ event: "unlocked", state });
       } else {
-        // lock is asking for unlock confirmation — send L0 back
-        console.log(
-          `[L0] ${imei} requesting unlock confirmation, sending L0 back`,
-        );
         const socket = getSocket(imei);
         if (socket) {
-          socket.write(buildCommand(imei, "L0"));
+          const data = fields.join(",");
+          const buf = buildCommand(imei, "L0", data);
+          socket.write(buf);
+          console.log(`[L0] ${imei} echoing challenge back: L0,${data}`);
         }
       }
       break;
