@@ -153,10 +153,11 @@ export function startTcpServer(): void {
         const fields = trimmed.split(",");
         if (fields.length >= 3 && trimmed.startsWith("*CMDR")) {
           const packetImei = fields[2];
-          if (packetImei && packetImei !== imei) {
-            imei = packetImei;
+          if (packetImei) {
+            if (packetImei !== imei) {
+              imei = packetImei;
+            }
             registerSocket(imei, socket);
-            console.log(`[TCP] Lock IMEI identified: ${imei}`);
           }
         }
 
