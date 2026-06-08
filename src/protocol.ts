@@ -80,16 +80,19 @@ export function parseHeartbeat(fields: string[]) {
 
 // Q0 fields:  [csq, voltage_mv, locked]
 export function parseSignIn(fields: string[]) {
+  if (fields.length === 1) {
+    const voltage_mv = parseInt(fields[0]);
+    return {
+      signal: 0,
+      batteryVoltage: voltage_mv / 100,
+      locked: false,
+    };
+  }
   return {
     signal: parseInt(fields[0] ?? "0"),
     batteryVoltage: parseInt(fields[1] ?? "0") / 100,
     locked: fields[2] !== "0",
   };
-  // return {
-  //   signal: parseInt(fields[0] ?? "0"),
-  //   batteryVoltage: parseInt(fields[1] ?? "0") / 100,
-  //   locked: fields[2] === "1",
-  // };
 }
 
 // D0 fields:  [lat, lon, speed, heading, satellites]
