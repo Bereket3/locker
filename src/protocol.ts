@@ -63,7 +63,7 @@ export function buildCommand(imei: string, cmd: CmdCode, data = ""): Buffer {
 
   const prefix = Buffer.from([0xff, 0xff]);
   const rest = Buffer.from(body, "ascii");
-  return Buffer.concat([rest]);
+  return Buffer.concat([prefix, rest]);
 }
 
 // ─── Parsed field helpers ─────────────────────────────────────────────────────

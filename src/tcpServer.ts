@@ -68,22 +68,18 @@ function handlePacket(raw: string): void {
 
     case "L0": {
       const status = fields[0];
-
       if (status === "1") {
         const state = upsertState(imei, { locked: false });
-        console.log(`[L0] ${imei} unlocked ✓`);
         broadcast({ event: "unlocked", state });
       } else {
         const socket = getSocket(imei);
         if (socket) {
-          const data = fields.join(",");
-          socket.write(buildCommand(imei, "L0", data));
-          console.log(`[L0] ${imei} echoing challenge: L0,${data}`);
+          socket.write(buildCommand(imei, "L0", "1"));
+          console.log(`[L0] granting unlock to ${imei}`);
         }
       }
       break;
     }
-
     case "L1": {
       const status = fields[0];
 
@@ -190,7 +186,10 @@ export function sendCommand(
   if (socket.destroyed) return { ok: false, error: "Socket closed" };
 
   try {
-    const buf = buildCommand(imei, cmd);
+    let data = "";
+    if (cmd === "L0" || cmd === "L1") data = "1";
+    const buf = buildCommand(imei, cmd, data);
+    // const buf = buildCommand(imei, cmd);
 
     console.log(`[→ LOCK] ${imei} cmd=${cmd}`);
     console.log(`[→ LOCK] raw hex: ${buf.toString("hex")}`);

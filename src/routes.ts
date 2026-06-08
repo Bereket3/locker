@@ -33,7 +33,7 @@ api.get("/locks/:imei", (c) => {
 // POST /locks/:imei/unlock — send L0
 api.post("/locks/:imei/unlock", (c) => {
   const { imei } = c.req.param();
-  const result = sendCommand(imei, "L1");
+  const result = sendCommand(imei, "L0");
   if (!result.ok) return c.json({ error: result.error }, 503);
   return c.json({ ok: true, message: `Unlock sent to ${imei}` });
 });
