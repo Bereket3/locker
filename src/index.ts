@@ -3,7 +3,9 @@ import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { cors } from "hono/cors";
 import { startTcpServer } from "./tcpServer.js";
-import { api, buildWsHandler } from "./routes.js";
+import { api } from "./routes.js";
+import { Server as HttpServer } from "http";
+import { initSocket } from "./sockets/index.js";
 
 const HTTP_PORT = 3000;
 
@@ -14,7 +16,7 @@ app.use("*", cors());
 app.route("/", api);
 
 // wire up WebSocket route here so upgradeWebSocket is in scope
-app.get("/ws", buildWsHandler(upgradeWebSocket));
+// app.get("/ws", buildWsHandler(upgradeWebSocket));
 
 app.get("/", (c) =>
   c.json({
@@ -34,6 +36,14 @@ app.get("/", (c) =>
 
 startTcpServer();
 
-serve({ fetch: app.fetch, port: HTTP_PORT }, (info) => {
-  console.log(`[HTTP] API running on http://localhost:${info.port}`);
-});
+const server = serve(
+  {
+    fetch: app.fetch,
+    port: 3000,
+  },
+  (info) => {
+    console.info(`Server is running on http://localhost:${info.port}`);
+  },
+);
+
+const io = initSocket(server as HttpServer);
