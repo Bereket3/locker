@@ -19,6 +19,7 @@ const TCP_PORT = 9679;
 // ─── Packet handler ───────────────────────────────────────────────────────────
 
 function handlePacket(raw: string): void {
+  console.log(raw.toString());
   const packet = parsePacket(raw);
   if (!packet) {
     console.warn(`[TCP] Unrecognised packet: ${raw}`);
@@ -116,8 +117,6 @@ function handlePacket(raw: string): void {
   }
 }
 
-// ─── TCP server ───────────────────────────────────────────────────────────────
-
 export function startTcpServer(): void {
   const server = net.createServer((socket) => {
     const addr = `${socket.remoteAddress}:${socket.remotePort}`;
@@ -127,7 +126,6 @@ export function startTcpServer(): void {
     let buffer = "";
 
     socket.on("data", (chunk: Buffer) => {
-      // Log raw incoming bytes — critical for debugging
       console.log(`[← LOCK] raw hex: ${chunk.toString("hex")}`);
       console.log(
         `[← LOCK] readable: ${chunk.toString("ascii").replace(/[^\x20-\x7E]/g, (c) => `<${c.charCodeAt(0).toString(16).toUpperCase()}>`)}`,
@@ -135,18 +133,14 @@ export function startTcpServer(): void {
 
       buffer += chunk.toString("ascii");
 
-      // Some firmwares end with #\n, some with just #
-      // Split on # and treat each complete segment as a packet
       const parts = buffer.split("#");
 
-      // Last element is either empty (packet ended cleanly) or an incomplete packet
       buffer = parts.pop() ?? "";
 
       for (const raw of parts) {
-        const trimmed = raw.replace(/^\n/, "").trim(); // strip leading \n from previous split
+        const trimmed = raw.replace(/^\n/, "").trim();
         if (!trimmed) continue;
 
-        // extract IMEI and register/refresh the socket on every packet
         const fields = trimmed.split(",");
         if (fields.length >= 3 && trimmed.startsWith("*CMDR")) {
           const packetImei = fields[2];
@@ -198,8 +192,6 @@ export function sendCommand(
   try {
     const buf = buildCommand(imei, cmd);
 
-    // Log exactly what we're sending — hex so we can verify the \xFF\xFF prefix
-    // and the full packet body character by character
     console.log(`[→ LOCK] ${imei} cmd=${cmd}`);
     console.log(`[→ LOCK] raw hex: ${buf.toString("hex")}`);
     console.log(
