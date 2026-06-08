@@ -83,8 +83,13 @@ export function parseSignIn(fields: string[]) {
   return {
     signal: parseInt(fields[0] ?? "0"),
     batteryVoltage: parseInt(fields[1] ?? "0") / 100,
-    locked: fields[2] === "1",
+    locked: fields[2] !== "0",
   };
+  // return {
+  //   signal: parseInt(fields[0] ?? "0"),
+  //   batteryVoltage: parseInt(fields[1] ?? "0") / 100,
+  //   locked: fields[2] === "1",
+  // };
 }
 
 // D0 fields:  [lat, lon, speed, heading, satellites]

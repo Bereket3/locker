@@ -68,14 +68,18 @@ function handlePacket(raw: string): void {
 
     case "L0": {
       const status = fields[0];
+
       if (status === "1") {
         const state = upsertState(imei, { locked: false });
+        console.log(`[L0] ${imei} unlocked ✓`);
         broadcast({ event: "unlocked", state });
       } else {
         const socket = getSocket(imei);
         if (socket) {
-          socket.write(buildCommand(imei, "L0", "1"));
-          console.log(`[L0] granting unlock to ${imei}`);
+          const data = fields.join(",");
+          const buf = buildCommand(imei, "L0", data);
+          socket.write(buf);
+          console.log(`[L0] ${imei} echoing: L0,${data}`);
         }
       }
       break;
