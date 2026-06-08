@@ -29,7 +29,7 @@ app.get("/", (c) =>
       "POST /locks/:imei/location",
       "WS   /ws",
     ],
-  })
+  }),
 );
 
 startTcpServer();

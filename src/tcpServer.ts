@@ -1,5 +1,4 @@
-import * as net from "net";
-
+import net from "net";
 import {
   registerSocket,
   removeSocket,
@@ -106,22 +105,34 @@ export function startTcpServer(): void {
     let buffer = "";
 
     socket.on("data", (chunk: Buffer) => {
+      // Log raw incoming bytes — critical for debugging
+      console.log(`[← LOCK] raw hex: ${chunk.toString("hex")}`);
+      console.log(
+        `[← LOCK] readable: ${chunk.toString("ascii").replace(/[^\x20-\x7E]/g, (c) => `<${c.charCodeAt(0).toString(16).toUpperCase()}>`)}`,
+      );
+
       buffer += chunk.toString("ascii");
 
-      // packets end with #\n — split and process complete ones
-      const parts = buffer.split(/(?<=#)\n/);
-      buffer = parts.pop() ?? ""; // last item may be incomplete
+      // Some firmwares end with #\n, some with just #
+      // Split on # and treat each complete segment as a packet
+      const parts = buffer.split("#");
+
+      // Last element is either empty (packet ended cleanly) or an incomplete packet
+      buffer = parts.pop() ?? "";
 
       for (const raw of parts) {
-        const trimmed = raw.trim();
+        const trimmed = raw.replace(/^\n/, "").trim(); // strip leading \n from previous split
         if (!trimmed) continue;
 
-        // register socket on first packet
+        // extract IMEI and register/refresh the socket on every packet
         const fields = trimmed.split(",");
-        if (!imei && fields.length >= 3 && trimmed.startsWith("*CMDR")) {
-          imei = fields[2];
-          registerSocket(imei, socket);
-          console.log(`[TCP] Lock IMEI identified: ${imei}`);
+        if (fields.length >= 3 && trimmed.startsWith("*CMDR")) {
+          const packetImei = fields[2];
+          if (packetImei && packetImei !== imei) {
+            imei = packetImei;
+            registerSocket(imei, socket);
+            console.log(`[TCP] Lock IMEI identified: ${imei}`);
+          }
         }
 
         handlePacket(trimmed);
@@ -163,8 +174,17 @@ export function sendCommand(
   if (socket.destroyed) return { ok: false, error: "Socket closed" };
 
   try {
-    socket.write(buildCommand(imei, cmd));
+    const buf = buildCommand(imei, cmd);
+
+    // Log exactly what we're sending — hex so we can verify the \xFF\xFF prefix
+    // and the full packet body character by character
     console.log(`[→ LOCK] ${imei} cmd=${cmd}`);
+    console.log(`[→ LOCK] raw hex: ${buf.toString("hex")}`);
+    console.log(
+      `[→ LOCK] readable: ${buf.toString("ascii").replace(/\xFF/g, "<FF>")}`,
+    );
+
+    socket.write(buf);
     return { ok: true };
   } catch (err) {
     return { ok: false, error: String(err) };

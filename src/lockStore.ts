@@ -5,19 +5,19 @@ import type { Socket } from "net";
 export interface LockLocation {
   lat: number;
   lon: number;
-  speed: number;      // km/h
-  heading: number;    // degrees 0–360
+  speed: number;
+  heading: number;
   satellites: number;
-  updatedAt: string;  // ISO timestamp
+  updatedAt: string;
 }
 
 export interface LockState {
   imei: string;
   locked: boolean;
-  batteryVoltage: number;   // volts, e.g. 3.80
-  signal: number;           // CSQ 0–31
-  connectedAt: string;      // ISO timestamp
-  lastSeenAt: string;       // ISO timestamp
+  batteryVoltage: number;
+  signal: number;
+  connectedAt: string;
+  lastSeenAt: string;
   location: LockLocation | null;
 }
 
@@ -54,7 +54,10 @@ export function connectedImeis(): string[] {
 
 // ─── State management ─────────────────────────────────────────────────────────
 
-export function upsertState(imei: string, patch: Partial<LockState>): LockState {
+export function upsertState(
+  imei: string,
+  patch: Partial<LockState>,
+): LockState {
   const existing = states.get(imei) ?? {
     imei,
     locked: true,
@@ -64,7 +67,11 @@ export function upsertState(imei: string, patch: Partial<LockState>): LockState 
     lastSeenAt: new Date().toISOString(),
     location: null,
   };
-  const next: LockState = { ...existing, ...patch, lastSeenAt: new Date().toISOString() };
+  const next: LockState = {
+    ...existing,
+    ...patch,
+    lastSeenAt: new Date().toISOString(),
+  };
   states.set(imei, next);
   return next;
 }
@@ -81,11 +88,15 @@ export function getAllStates(): LockState[] {
 
 export function subscribe(fn: BroadcastFn): () => void {
   subscribers.add(fn);
-  return () => subscribers.delete(fn);   // returns unsubscribe
+  return () => subscribers.delete(fn); // returns unsubscribe
 }
 
 export function broadcast(data: unknown): void {
   for (const fn of subscribers) {
-    try { fn(data); } catch { /* dead subscriber */ }
+    try {
+      fn(data);
+    } catch {
+      /* dead subscriber */
+    }
   }
 }

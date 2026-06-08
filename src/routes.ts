@@ -1,6 +1,11 @@
 import { Hono } from "hono";
 import type { WSContext } from "hono/ws";
-import { connectedImeis, getState, getAllStates, subscribe } from "./lockStore.js";
+import {
+  connectedImeis,
+  getState,
+  getAllStates,
+  subscribe,
+} from "./lockStore.js";
 import { sendCommand } from "./tcpServer.js";
 import { signalLabel } from "./protocol.js";
 
@@ -73,7 +78,11 @@ export function buildWsHandler(upgradeWebSocket: Function) {
 
       // subscribe to live lock events
       const unsub = subscribe((data) => {
-        try { ws.send(JSON.stringify(data)); } catch { /* client gone */ }
+        try {
+          ws.send(JSON.stringify(data));
+        } catch {
+          /* client gone */
+        }
       });
 
       // stash for cleanup
