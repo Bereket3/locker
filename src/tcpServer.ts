@@ -213,13 +213,28 @@ export function sendCommand(
   try {
     const buf = buildCommand(imei, cmd);
 
+    const now = new Date();
+    const ts = [
+      String(now.getFullYear()).slice(2),
+      String(now.getMonth() + 1).padStart(2, "0"),
+      String(now.getDate()).padStart(2, "0"),
+      String(now.getHours()).padStart(2, "0"),
+      String(now.getMinutes()).padStart(2, "0"),
+      String(now.getSeconds()).padStart(2, "0"),
+    ].join("");
+
     console.log(`[→ LOCK] ${imei} cmd=${cmd}`);
     console.log(`[→ LOCK] raw hex: ${buf.toString("hex")}`);
     console.log(
       `[→ LOCK] readable: ${buf.toString("ascii").replace(/\xFF/g, "<FF>")}`,
     );
 
-    socket.write(buf);
+    socket.write(
+      Buffer.concat([
+        Buffer.from([0xff, 0xff, 0xff, 0xff, 0xff, 0xff]),
+        Buffer.from(`*CMDS,OM,${imei},${ts},Re,${cmd}#\n`, "ascii"),
+      ]),
+    );
     return { ok: true };
   } catch (err) {
     return { ok: false, error: String(err) };
