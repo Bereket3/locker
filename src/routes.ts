@@ -30,23 +30,6 @@ api.get("/locks/:imei", (c) => {
   return c.json({ ...state, signalLabel: signalLabel(state.signal) });
 });
 
-// POST /locks/:imei/unlock — send L0
-api.post("/locks/:imei/unlock", (c) => {
-  const { imei } = c.req.param();
-
-  const socket = getSocket(imei);
-  console.log(`[UNLOCK] socket exists: ${!!socket}`);
-  console.log(`[UNLOCK] socket destroyed: ${socket?.destroyed}`);
-  console.log(`[UNLOCK] socket writable: ${socket?.writable}`);
-  console.log(`[UNLOCK] connected imeis: ${connectedImeis().join(", ")}`);
-
-  const result = sendCommand(imei, "L0");
-  console.log(`[UNLOCK] sendCommand result: ${JSON.stringify(result)}`);
-
-  if (!result.ok) return c.json({ error: result.error }, 503);
-  return c.json({ ok: true });
-});
-
 // routes.ts — temporary debug endpoint
 api.post("/locks/:imei/unlock/:variant", async (c) => {
   const { imei, variant } = c.req.param();
@@ -87,12 +70,19 @@ function getTimestamp() {
   ].join("");
 }
 
-// POST /locks/:imei/lock — send L1
+// routes.ts
+api.post("/locks/:imei/unlock", (c) => {
+  const { imei } = c.req.param();
+  const result = sendCommand(imei, "L1"); // L1 = unlock
+  if (!result.ok) return c.json({ error: result.error }, 503);
+  return c.json({ ok: true, message: `Unlock sent to ${imei}` });
+});
+
 api.post("/locks/:imei/lock", (c) => {
   const { imei } = c.req.param();
-  const result = sendCommand(imei, "L1");
+  const result = sendCommand(imei, "L0"); // L0 = lock
   if (!result.ok) return c.json({ error: result.error }, 503);
-  return c.json({ ok: true, message: `Lock command sent to ${imei}` });
+  return c.json({ ok: true, message: `Lock sent to ${imei}` });
 });
 
 // GET /locks/:imei/location — last known GPS
