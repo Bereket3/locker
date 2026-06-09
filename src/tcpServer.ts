@@ -39,15 +39,36 @@ function handlePacket(raw: string): void {
 
       const socket = getSocket(imei);
       if (socket) {
-        const ack = Buffer.concat([
-          Buffer.from([0xff, 0xff]),
-          Buffer.from(
-            `*CMDS,OM,${imei},000000000000,Q0,${fields[0]}#\n`,
-            "ascii",
-          ),
-        ]);
-        socket.write(ack);
-        console.log(`[Q0] ack sent with field: ${fields[0]}`);
+        // Q0 ack
+        socket.write(
+          Buffer.concat([
+            Buffer.from([0xff, 0xff]),
+            Buffer.from(
+              `*CMDS,OM,${imei},000000000000,Q0,${fields[0]}#\n`,
+              "ascii",
+            ),
+          ]),
+        );
+
+        setTimeout(() => {
+          const authAttempts = [
+            // mirror what BleTool sets: LOCK_KEY:1,0,0,2,0,0,07,04,04
+            `*CMDS,OM,${imei},000000000000,K0,1,0,0,2,0,0,07,04,04#\n`,
+            `*CMDS,OM,${imei},000000000000,K0,1#\n`,
+            `*CMDS,OM,${imei},000000000000,K0,0#\n`,
+            // some firmware uses SET command
+            `*CMDS,OM,${imei},000000000000,S0,LOCK_KEY:1#\n`,
+          ];
+
+          for (const cmd of authAttempts) {
+            const buf = Buffer.concat([
+              Buffer.from([0xff, 0xff]),
+              Buffer.from(cmd, "ascii"),
+            ]);
+            socket.write(buf);
+            console.log(`[K0] sent: ${cmd.trim()}`);
+          }
+        }, 300);
       }
       break;
     }
