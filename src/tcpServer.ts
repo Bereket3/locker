@@ -92,7 +92,7 @@ function handlePacket(raw: string): void {
         const socket = getSocket(imei);
         if (socket) {
           const data = fields.join(",");
-          socket.write(buildCommand(imei, "L0", data));
+          // socket.write(buildCommand(imei, "L0", data));
           console.log(`[L0] ${imei} echoing challenge: L0,${data}`);
         }
       }
@@ -115,7 +115,7 @@ function handlePacket(raw: string): void {
         const socket = getSocket(imei);
         if (socket) {
           const data = fields.join(",");
-          socket.write(buildCommand(imei, "L1", data));
+          // socket.write(buildCommand(imei, "L1", data));
           console.log(`[L1] ${imei} echoing challenge: L1,${data}`);
         }
       }
