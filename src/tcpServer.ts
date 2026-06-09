@@ -31,25 +31,21 @@ function handlePacket(raw: string): void {
   switch (cmd) {
     case "Q0": {
       const batteryVoltage = parseInt(fields[0] ?? "0") / 100;
-
-      const state = upsertState(imei, {
-        signal: 0,
+      upsertState(imei, {
         batteryVoltage,
         locked: true,
         connectedAt: new Date().toISOString(),
       });
 
-      console.log(
-        `[Q0] Lock ${imei} signed in | battery=${batteryVoltage.toFixed(2)}V`,
-      );
-
       const socket = getSocket(imei);
       if (socket) {
-        socket.write(buildCommand(imei, "Q0"));
-        console.log(`[Q0] acknowledged`);
+        const ack = Buffer.concat([
+          Buffer.from([0xff, 0xff]),
+          Buffer.from(`*CMDS,OM,${imei},000000000000,Q0#\n`, "ascii"),
+        ]);
+        socket.write(ack);
+        console.log(`[Q0] ack sent`);
       }
-
-      broadcast({ event: "connected", state });
       break;
     }
 
