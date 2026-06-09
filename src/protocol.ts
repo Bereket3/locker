@@ -58,12 +58,12 @@ export function buildCommand(imei: string, cmd: CmdCode, data = ""): Buffer {
   ].join("");
 
   const body = data
-    ? `*CMDS,OM,${imei},${ts},${cmd},${data}#\n`
-    : `*CMDS,OM,${imei},${ts},${cmd}#\n`;
+    ? `*CMDS,OM,${imei},${ts},Re,${cmd},${data}#\n`
+    : `*CMDS,OM,${imei},${ts},Re,${cmd}#\n`;
 
-  // const prefix = Buffer.from([0xff, 0xff]);
+  const prefix = Buffer.from([0xff, 0xff, 0xff]);
   const rest = Buffer.from(body, "ascii");
-  return Buffer.concat([rest]);
+  return Buffer.concat([prefix, rest]);
 }
 
 // ─── Parsed field helpers ─────────────────────────────────────────────────────
