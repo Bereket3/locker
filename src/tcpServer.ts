@@ -41,10 +41,13 @@ function handlePacket(raw: string): void {
       if (socket) {
         const ack = Buffer.concat([
           Buffer.from([0xff, 0xff]),
-          Buffer.from(`*CMDS,OM,${imei},000000000000,Q0#\n`, "ascii"),
+          Buffer.from(
+            `*CMDS,OM,${imei},000000000000,Q0,${fields[0]}#\n`,
+            "ascii",
+          ),
         ]);
         socket.write(ack);
-        console.log(`[Q0] ack sent`);
+        console.log(`[Q0] ack sent with field: ${fields[0]}`);
       }
       break;
     }
@@ -73,35 +76,46 @@ function handlePacket(raw: string): void {
 
     case "L0": {
       const status = fields[0];
-      console.log(`[L0] status=${status} fields=${fields.join(",")}`);
+      const token = fields[2] ?? "0";
 
       if (status === "1") {
         const state = upsertState(imei, { locked: false });
         console.log(`[L0] ${imei} unlocked ✓`);
         broadcast({ event: "unlocked", state });
+      } else if (token === "0") {
+        console.log(`[L0] ${imei} status broadcast (unlocked), ignoring`);
+        upsertState(imei, { locked: false });
       } else {
+        // real challenge — echo back
         const socket = getSocket(imei);
         if (socket) {
           const data = fields.join(",");
           socket.write(buildCommand(imei, "L0", data));
-          console.log(`[L0] ${imei} echoed: L0,${data}`);
+          console.log(`[L0] ${imei} echoing real challenge: L0,${data}`);
         }
       }
       break;
     }
+
     case "L1": {
       const status = fields[0];
+      const token = fields[2] ?? "0";
 
       if (status === "1") {
         const state = upsertState(imei, { locked: true });
         console.log(`[L1] ${imei} locked ✓`);
         broadcast({ event: "locked", state });
+      } else if (token === "0") {
+        // all-zero token = status broadcast, not a challenge — just record it
+        console.log(`[L1] ${imei} status broadcast (locked), ignoring`);
+        upsertState(imei, { locked: true });
       } else {
+        // real token present — this is a genuine challenge, echo it
         const socket = getSocket(imei);
         if (socket) {
           const data = fields.join(",");
           socket.write(buildCommand(imei, "L1", data));
-          console.log(`[L1] ${imei} echoing challenge: L1,${data}`);
+          console.log(`[L1] ${imei} echoing real challenge: L1,${data}`);
         }
       }
       break;
