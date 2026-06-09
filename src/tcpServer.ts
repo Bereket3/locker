@@ -210,10 +210,7 @@ export function sendCommand(
   if (socket.destroyed) return { ok: false, error: "Socket closed" };
 
   try {
-    let data = "";
-    if (cmd === "L0" || cmd === "L1") data = "1";
-    const buf = buildCommand(imei, cmd, data);
-    // const buf = buildCommand(imei, cmd);
+    const buf = buildCommand(imei, cmd);
 
     console.log(`[→ LOCK] ${imei} cmd=${cmd}`);
     console.log(`[→ LOCK] raw hex: ${buf.toString("hex")}`);
