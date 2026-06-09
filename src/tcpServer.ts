@@ -42,9 +42,9 @@ function handlePacket(raw: string): void {
         // just Q0 ack — nothing else
         socket.write(
           Buffer.concat([
-            Buffer.from([0xff, 0xff]),
+            Buffer.from([0xff, 0xff, 0xff, 0xff, 0xff, 0xff]),
             Buffer.from(
-              `*CMDS,OM,${imei},000000000000,Q0,${fields[0]}#\n`,
+              `*CMDS,OM,${imei},000000000000,Re,Q0,${fields[0]}#\n`,
               "ascii",
             ),
           ]),
