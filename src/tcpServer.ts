@@ -39,7 +39,6 @@ function handlePacket(raw: string): void {
 
       const socket = getSocket(imei);
       if (socket) {
-        // just Q0 ack — nothing else
         socket.write(
           Buffer.concat([
             Buffer.from([0xff, 0xff, 0xff, 0xff, 0xff, 0xff]),
@@ -232,7 +231,7 @@ export function sendCommand(
     socket.write(
       Buffer.concat([
         Buffer.from([0xff, 0xff, 0xff, 0xff, 0xff, 0xff]),
-        Buffer.from(`*CMDS,OM,${imei},${ts},Re,${cmd}#\n`, "ascii"),
+        Buffer.from(`*CMDS,OM,${imei},${ts},Re,D0#\n`, "ascii"),
       ]),
     );
     return { ok: true };

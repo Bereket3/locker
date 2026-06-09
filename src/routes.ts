@@ -37,11 +37,11 @@ api.post("/locks/:imei/unlock/:variant", async (c) => {
   if (!socket) return c.json({ error: "not connected" }, 503);
 
   const commands: Record<string, string> = {
-    a: `\xFF\xFF*CMDS,OM,${imei},${getTimestamp()},L0,1#\n`,
-    b: `\xFF\xFF*CMDS,OM,${imei},${getTimestamp()},L0,0,1#\n`,
-    c: `\xFF\xFF*CMDS,OM,${imei},${getTimestamp()},L0,0000#\n`,
-    d: `\xFF\xFF*CMDS,OM,${imei},${getTimestamp()},L0,1234#\n`,
-    e: `\xFF\xFF*CMDS,OM,${imei},${getTimestamp()},L0,0,0,0#\n`,
+    a: `\xFF\xFF\xFF\xFF\xFF\xFF*CMDS,OM,${imei},${getTimestamp()},L0,1#\n`,
+    b: `\xFF\xFF\xFF\xFF\xFF\xFF*CMDS,OM,${imei},${getTimestamp()},L0,0,1#\n`,
+    c: `\xFF\xFF\xFF\xFF\xFF\xFF*CMDS,OM,${imei},${getTimestamp()},L0,0000#\n`,
+    d: `\xFF\xFF\xFF\xFF\xFF\xFF*CMDS,OM,${imei},${getTimestamp()},L0,1234#\n`,
+    e: `\xFF\xFF\xFF\xFF\xFF\xFF*CMDS,OM,${imei},${getTimestamp()},L0,0,0,0#\n`,
   };
 
   const cmd = commands[variant];
