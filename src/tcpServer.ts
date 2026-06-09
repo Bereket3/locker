@@ -219,7 +219,7 @@ export function sendCommand(
       `[→ LOCK] readable: ${buf.toString("ascii").replace(/\xFF/g, "<FF>")}`,
     );
 
-    socket.write(buf.toString("hex"));
+    socket.write(buf);
     return { ok: true };
   } catch (err) {
     return { ok: false, error: String(err) };
