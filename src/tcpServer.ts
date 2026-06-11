@@ -27,6 +27,7 @@ function handlePacket(raw: string): void {
   }
 
   const { imei, cmd, fields } = packet;
+  const socket = getSocket(imei);
 
   switch (cmd) {
     case "Q0": {
@@ -37,17 +38,9 @@ function handlePacket(raw: string): void {
         connectedAt: new Date().toISOString(),
       });
 
-      const socket = getSocket(imei);
       if (socket) {
-        socket.write(
-          Buffer.concat([
-            Buffer.from([0xff, 0xff, 0xff, 0xff, 0xff, 0xff]),
-            Buffer.from(
-              `*CMDS,OM,${imei},000000000000,Re,Q0,${fields[0]}#\n`,
-              "ascii",
-            ),
-          ]),
-        );
+        // Acknowledge check-in
+        socket.write(buildCommand(imei, "Q0", fields[0], true));
         console.log(`[Q0] ack sent`);
       }
       break;
@@ -57,8 +50,13 @@ function handlePacket(raw: string): void {
       const { locked, batteryVoltage, signal } = parseHeartbeat(fields);
       const state = upsertState(imei, { locked, batteryVoltage, signal });
       console.log(
-        `[H0] ${imei} | locked=${locked} | battery=${batteryVoltage.toFixed(2)}V | signal=${signal}/31`,
+        `[H0] ${imei} | locked=${locked} | battery=${batteryVoltage.toFixed(2)}V`,
       );
+
+      if (socket) {
+        // Acknowledge Heartbeat
+        socket.write(buildCommand(imei, "H0", "", true));
+      }
       broadcast({ event: "heartbeat", state });
       break;
     }
@@ -68,71 +66,68 @@ function handlePacket(raw: string): void {
       const state = upsertState(imei, {
         location: { ...gps, updatedAt: new Date().toISOString() },
       });
-      console.log(
-        `[D0] ${imei} | lat=${gps.lat} lon=${gps.lon} | speed=${gps.speed}km/h | sats=${gps.satellites}`,
-      );
+      console.log(`[D0] ${imei} | lat=${gps.lat} lon=${gps.lon}`);
+
+      if (socket) {
+        // CRITICAL: Acknowledge GPS upload to clear hardware retry buffer
+        socket.write(buildCommand(imei, "D0", "", true));
+        console.log(`[D0] ack sent`);
+      }
       broadcast({ event: "location", imei, location: state.location });
       break;
     }
 
     case "L0": {
-      // L0 = lock confirmation
-      const status = fields[0];
-      const token = fields[2] ?? "0";
-
-      if (status === "1") {
-        const state = upsertState(imei, { locked: true }); // L0 = locked
-        console.log(`[L0] ${imei} locked ✓`);
-        broadcast({ event: "locked", state });
-      } else if (token === "0") {
-        console.log(`[L0] ${imei} status broadcast (locked), ignoring`);
-        upsertState(imei, { locked: true });
-      } else {
-        const socket = getSocket(imei);
-        if (socket) {
-          const data = fields.join(",");
-          // socket.write(buildCommand(imei, "L0", data));
-          console.log(`[L0] ${imei} echoing challenge: L0,${data}`);
-        }
-      }
+      // L0 confirmation from device means it successfully UNLOCKED
+      const state = upsertState(imei, { locked: false });
+      console.log(`[L0] ${imei} confirmed UNLOCKED ✓`);
+      broadcast({ event: "unlocked", state });
       break;
     }
 
     case "L1": {
-      // L1 = unlock confirmation
-      const status = fields[0];
-      const token = fields[2] ?? "0";
+      // L1 from device is an active notification that it was LOCKED
+      const state = upsertState(imei, { locked: true });
+      console.log(`[L1] ${imei} confirmed LOCKED ✓`);
 
-      if (status === "1") {
-        const state = upsertState(imei, { locked: false }); // L1 = unlocked
-        console.log(`[L1] ${imei} unlocked ✓`);
-        broadcast({ event: "unlocked", state });
-      } else if (token === "0") {
-        console.log(`[L1] ${imei} status broadcast (unlocked), ignoring`);
-        upsertState(imei, { locked: false });
-      } else {
-        const socket = getSocket(imei);
-        if (socket) {
-          const data = fields.join(",");
-          // socket.write(buildCommand(imei, "L1", data));
-          console.log(`[L1] ${imei} echoing challenge: L1,${data}`);
-        }
+      if (socket) {
+        // CRITICAL: Acknowledge lock reporting event (Matches Screenshot 1)
+        socket.write(buildCommand(imei, "L1", "", true));
+        console.log(`[L1] ack sent`);
       }
-      break;
-    }
-
-    case "S5": {
-      const locked = fields[0] === "1";
-      const state = upsertState(imei, { locked });
-      console.log(`[S5] ${imei} status=${locked ? "locked" : "unlocked"}`);
-      broadcast({ event: "status", state });
+      broadcast({ event: "locked", state });
       break;
     }
 
     default:
-      console.log(
-        `[TCP] ${imei} unhandled cmd=${cmd} fields=${fields.join(",")}`,
-      );
+      console.log(`[TCP] ${imei} unhandled cmd=${cmd}`);
+  }
+}
+
+// ─── Command sender ───────────────────────────────────────────────────────────
+
+export type LockCommand = "L0" | "L1" | "D0" | "S5";
+
+export function sendCommand(
+  imei: string,
+  cmd: LockCommand,
+  data = "",
+): { ok: boolean; error?: string } {
+  const socket = getSocket(imei);
+  if (!socket) return { ok: false, error: "Lock not connected" };
+  if (socket.destroyed) return { ok: false, error: "Socket closed" };
+
+  try {
+    // isReply = false because this is an active outbound command initiation
+    const buf = buildCommand(imei, cmd, data, false);
+
+    console.log(
+      `[→ LOCK] Sending Active Command ${imei} cmd=${cmd} data=${data}`,
+    );
+    socket.write(buf);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: String(err) };
   }
 }
 
@@ -195,32 +190,4 @@ export function startTcpServer(): void {
   server.on("error", (err) => {
     console.error("[TCP] Server error:", err.message);
   });
-}
-
-// ─── Command sender ───────────────────────────────────────────────────────────
-
-export type LockCommand = "L0" | "L1" | "D0" | "S5";
-
-export function sendCommand(
-  imei: string,
-  cmd: LockCommand,
-): { ok: boolean; error?: string } {
-  const socket = getSocket(imei);
-  if (!socket) return { ok: false, error: "Lock not connected" };
-  if (socket.destroyed) return { ok: false, error: "Socket closed" };
-
-  try {
-    const buf = buildCommand(imei, cmd); // uses buildCommand correctly
-
-    console.log(`[→ LOCK] ${imei} cmd=${cmd}`);
-    console.log(`[→ LOCK] raw hex: ${buf.toString("hex")}`);
-    console.log(
-      `[→ LOCK] readable: ${buf.toString("ascii").replace(/\xFF/g, "<FF>")}`,
-    );
-
-    socket.write(buf);
-    return { ok: true };
-  } catch (err) {
-    return { ok: false, error: String(err) };
-  }
 }

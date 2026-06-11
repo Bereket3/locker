@@ -71,18 +71,30 @@ function getTimestamp() {
 }
 
 // routes.ts
+// Fix your unlock route to send active L0 commands with arguments
 api.post("/locks/:imei/unlock", (c) => {
   const { imei } = c.req.param();
-  const result = sendCommand(imei, "L1");
+
+  // L0 = Unlock command.
+  // Arguments: 0 (keep/reset ride time clock), 0 (User ID mapping), 0 (Timestamp reference)
+  const result = sendCommand(imei, "L0", "0,0,0");
+
   if (!result.ok) return c.json({ error: result.error }, 503);
-  return c.json({ ok: true, message: `Unlock sent to ${imei}` });
+  return c.json({
+    ok: true,
+    message: `Active Unlock command (L0) sent to ${imei}`,
+  });
 });
 
 api.post("/locks/:imei/lock", (c) => {
   const { imei } = c.req.param();
-  const result = sendCommand(imei, "L0"); // L0 = lock
+
+  // Note: Most physical horseshoe locks can only be locked manually by a user,
+  // but if your version supports electronic remote locking, it uses L1
+  const result = sendCommand(imei, "L1");
+
   if (!result.ok) return c.json({ error: result.error }, 503);
-  return c.json({ ok: true, message: `Lock sent to ${imei}` });
+  return c.json({ ok: true, message: `Active Lock command sent to ${imei}` });
 });
 
 // GET /locks/:imei/location — last known GPS
