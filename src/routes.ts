@@ -89,8 +89,6 @@ api.post("/locks/:imei/unlock", (c) => {
 api.post("/locks/:imei/lock", (c) => {
   const { imei } = c.req.param();
 
-  // Note: Most physical horseshoe locks can only be locked manually by a user,
-  // but if your version supports electronic remote locking, it uses L1
   const result = sendCommand(imei, "L1");
 
   if (!result.ok) return c.json({ error: result.error }, 503);

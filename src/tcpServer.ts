@@ -16,8 +16,6 @@ import {
 
 const TCP_PORT = 9679;
 
-// ─── Packet handler ───────────────────────────────────────────────────────────
-
 function handlePacket(raw: string): void {
   console.log(raw.toString());
   const packet = parsePacket(raw);
@@ -39,6 +37,7 @@ function handlePacket(raw: string): void {
       });
 
       const socket = getSocket(imei);
+
       if (socket) {
         socket.write(buildCommand(imei, "Q0", fields[0], true));
         console.log(`[Q0] ack sent`);
@@ -54,7 +53,6 @@ function handlePacket(raw: string): void {
       );
 
       if (socket) {
-        // Acknowledge Heartbeat
         socket.write(buildCommand(imei, "H0", "", true));
       }
       broadcast({ event: "heartbeat", state });
@@ -78,20 +76,21 @@ function handlePacket(raw: string): void {
     }
 
     case "L0": {
-      // L0 confirmation from device means it successfully UNLOCKED
       const state = upsertState(imei, { locked: false });
+      if (socket) {
+        socket.write(buildCommand(imei, "L0", "", true));
+        console.log(`[L0] ack sent`);
+      }
       console.log(`[L0] ${imei} confirmed UNLOCKED ✓`);
       broadcast({ event: "unlocked", state });
       break;
     }
 
     case "L1": {
-      // L1 from device is an active notification that it was LOCKED
       const state = upsertState(imei, { locked: true });
       console.log(`[L1] ${imei} confirmed LOCKED ✓`);
 
       if (socket) {
-        // CRITICAL: Acknowledge lock reporting event (Matches Screenshot 1)
         socket.write(buildCommand(imei, "L1", "", true));
         console.log(`[L1] ack sent`);
       }
@@ -114,16 +113,17 @@ export function sendCommand(
   data = "",
 ): { ok: boolean; error?: string } {
   const socket = getSocket(imei);
+
   if (!socket) return { ok: false, error: "Lock not connected" };
   if (socket.destroyed) return { ok: false, error: "Socket closed" };
 
   try {
-    // isReply = false because this is an active outbound command initiation
     const buf = buildCommand(imei, cmd, data, false);
 
     console.log(
       `[→ LOCK] Sending Active Command ${imei} cmd=${cmd} data=${data}`,
     );
+
     socket.write(buf);
     return { ok: true };
   } catch (err) {
