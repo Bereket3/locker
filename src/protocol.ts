@@ -54,7 +54,6 @@ export function buildCommand(
 ): Buffer {
   const now = new Date();
 
-  // 1. Generate the 12-digit Omni date string (YYMMDDHHmmss) for Column 4 alignment
   const yy = String(now.getUTCFullYear()).slice(-2);
   const mo = String(now.getUTCMonth() + 1).padStart(2, "0");
   const dd = String(now.getUTCDate()).padStart(2, "0");
@@ -63,27 +62,21 @@ export function buildCommand(
   const ss = String(now.getUTCSeconds()).padStart(2, "0");
   const timeStr = `${yy}${mo}${dd}${hh}${mm}${ss}`;
 
-  // 2. Format the command code (Server replies prepend "Re,")
   const commandCode = isReply ? `Re,${cmd}` : cmd;
 
-  // 3. BYPASS REPLAY PROTECTION: If sending an unlock command, inject a live Unix timestamp
   let finalData = data;
   if (cmd === "L0" && (data === "0,0,0" || data.endsWith(",0"))) {
     const currentUnixTimestamp = Math.floor(now.getTime() / 1000);
-    // Overrides '0,0,0' with '0,0,178119xxxx' matching the lock's internal clock
     finalData = `0,0xl,${currentUnixTimestamp}`;
   }
 
   const dataStr = finalData ? `,${finalData}` : "";
 
-  // 4. Construct the standard ASCII payload body
   const body = `*CMDS,OM,${imei},${timeStr},${commandCode}${dataStr}#\n`;
   const bodyBuffer = Buffer.from(body, "ascii");
 
-  // 5. WAKE-UP PREAMBLE: Prepend the 6x 0xFF bytes required by the hardware transceiver
   const preamble = Buffer.from([0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);
 
-  // Combine both into the final raw TCP packet buffer
   return Buffer.concat([preamble, bodyBuffer]);
 }
 

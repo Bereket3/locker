@@ -97,15 +97,6 @@ api.post("/locks/:imei/lock", (c) => {
   return c.json({ ok: true, message: `Active Lock command sent to ${imei}` });
 });
 
-// GET /locks/:imei/location — last known GPS
-api.get("/locks/:imei/location", (c) => {
-  const { imei } = c.req.param();
-  const state = getState(imei);
-  if (!state) return c.json({ error: "Lock not found" }, 404);
-  if (!state.location) return c.json({ error: "No GPS fix yet" }, 404);
-  return c.json(state.location);
-});
-
 // POST /locks/:imei/location — request fresh GPS from lock
 api.post("/locks/:imei/location", (c) => {
   const { imei } = c.req.param();
