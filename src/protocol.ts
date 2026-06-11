@@ -48,14 +48,27 @@ export function parsePacket(raw: string): ParsedPacket | null {
 
 export function buildCommand(
   imei: string,
-  cmd: CmdCode,
+  cmd: string,
   data = "",
   isReply = false,
 ): Buffer {
-  const replyStr = isReply ? "Re," : "";
+  const now = new Date();
+  const yy = String(now.getUTCFullYear()).slice(-2);
+  const mo = String(now.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(now.getUTCDate()).padStart(2, "0");
+  const hh = String(now.getUTCHours()).padStart(2, "0");
+  const mm = String(now.getUTCMinutes()).padStart(2, "0");
+  const ss = String(now.getUTCSeconds()).padStart(2, "0");
+  const timeStr = `${yy}${mo}${dd}${hh}${mm}${ss}`;
+
+  // 2. Format ACKs properly (Re goes into the command column)
+  const commandCode = isReply ? `Re,${cmd}` : cmd;
+
+  // 3. Append data if present
   const dataStr = data ? `,${data}` : "";
 
-  const body = `*CMDS,OM,${imei},${replyStr}${cmd}${dataStr}#\n`;
+  // 4. Construct with exact column alignment
+  const body = `*CMDS,OM,${imei},${timeStr},${commandCode}${dataStr}#\n`;
 
   return Buffer.from(body, "ascii");
 }
