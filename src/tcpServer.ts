@@ -8,7 +8,6 @@ import {
 } from "./lockStore.js";
 import {
   parsePacket,
-  parseSignIn,
   parseHeartbeat,
   parseGps,
   buildCommand,
@@ -17,7 +16,6 @@ import {
 const TCP_PORT = 9679;
 
 function handlePacket(raw: string): void {
-  console.log(raw.toString());
   const packet = parsePacket(raw);
   if (!packet) {
     console.warn(`[TCP] Unrecognised packet: ${raw}`);
@@ -30,6 +28,7 @@ function handlePacket(raw: string): void {
   switch (cmd) {
     case "Q0": {
       const batteryVoltage = parseInt(fields[0] ?? "0") / 100;
+
       upsertState(imei, {
         batteryVoltage,
         locked: true,
@@ -40,8 +39,8 @@ function handlePacket(raw: string): void {
 
       if (socket) {
         socket.write(buildCommand(imei, "Q0", fields[0], true));
-        console.log(`[Q0] ack sent`);
       }
+
       break;
     }
 
@@ -59,18 +58,31 @@ function handlePacket(raw: string): void {
       break;
     }
 
+    case "W0": {
+      const freq = fields[0];
+      console.log(`[W0] ${imei} | frequency=${freq}`);
+
+      if (socket) {
+        socket.write(buildCommand(imei, "W0", "", true));
+      }
+
+      broadcast({ event: "alarm", freq });
+      break;
+    }
+
     case "D0": {
       const gps = parseGps(fields);
+
       const state = upsertState(imei, {
         location: { ...gps, updatedAt: new Date().toISOString() },
       });
+
       console.log(`[D0] ${imei} | lat=${gps.lat} lon=${gps.lon}`);
 
       if (socket) {
-        // CRITICAL: Acknowledge GPS upload to clear hardware retry buffer
         socket.write(buildCommand(imei, "D0", "", true));
-        console.log(`[D0] ack sent`);
       }
+
       broadcast({ event: "location", imei, location: state.location });
       break;
     }
@@ -103,8 +115,6 @@ function handlePacket(raw: string): void {
   }
 }
 
-// ─── Command sender ───────────────────────────────────────────────────────────
-
 export type LockCommand = "L0" | "L1" | "D0" | "S5";
 
 export function sendCommand(
@@ -134,15 +144,16 @@ export function sendCommand(
 export function startTcpServer(): void {
   const server = net.createServer((socket) => {
     const addr = `${socket.remoteAddress}:${socket.remotePort}`;
+
     console.log(`[TCP] New connection from ${addr}`);
 
     let imei: string | null = null;
     let buffer = "";
 
     socket.on("data", (chunk: Buffer) => {
-      console.log(`[← LOCK] raw hex: ${chunk.toString("hex")}`);
+      console.log(`[LOCK: incoming] raw hex: ${chunk.toString("hex")}`);
       console.log(
-        `[← LOCK] readable: ${chunk.toString("ascii").replace(/[^\x20-\x7E]/g, (c) => `<${c.charCodeAt(0).toString(16).toUpperCase()}>`)}`,
+        `[LOCK: incoming] readable: ${chunk.toString("ascii").replace(/[^\x20-\x7E]/g, (c) => `<${c.charCodeAt(0).toString(16).toUpperCase()}>`)}`,
       );
 
       buffer += chunk.toString("ascii");
@@ -153,8 +164,8 @@ export function startTcpServer(): void {
 
       for (const raw of parts) {
         const trimmed = raw.replace(/^\n/, "").trim();
-        if (!trimmed) continue;
 
+        if (!trimmed) continue;
         const fields = trimmed.split(",");
         if (fields.length >= 3 && trimmed.startsWith("*CMDR")) {
           const packetImei = fields[2];

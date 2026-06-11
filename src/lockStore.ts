@@ -1,7 +1,5 @@
 import type { Socket } from "net";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 export interface LockLocation {
   lat: number;
   lon: number;
@@ -21,19 +19,11 @@ export interface LockState {
   location: LockLocation | null;
 }
 
-// ─── In-memory store ──────────────────────────────────────────────────────────
-
-// Active TCP sockets: imei → Socket
 const sockets = new Map<string, Socket>();
-
-// Latest known state per lock
 const states = new Map<string, LockState>();
 
-// WebSocket broadcast subscribers (plain callback so we stay framework-agnostic)
 type BroadcastFn = (data: unknown) => void;
 const subscribers = new Set<BroadcastFn>();
-
-// ─── Socket management ────────────────────────────────────────────────────────
 
 export function registerSocket(imei: string, socket: Socket): void {
   sockets.set(imei, socket);
@@ -51,8 +41,6 @@ export function getSocket(imei: string): Socket | undefined {
 export function connectedImeis(): string[] {
   return [...sockets.keys()];
 }
-
-// ─── State management ─────────────────────────────────────────────────────────
 
 export function upsertState(
   imei: string,
@@ -84,11 +72,9 @@ export function getAllStates(): LockState[] {
   return [...states.values()];
 }
 
-// ─── WebSocket pub/sub ────────────────────────────────────────────────────────
-
 export function subscribe(fn: BroadcastFn): () => void {
   subscribers.add(fn);
-  return () => subscribers.delete(fn); // returns unsubscribe
+  return () => subscribers.delete(fn);
 }
 
 export function broadcast(data: unknown): void {

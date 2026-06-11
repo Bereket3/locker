@@ -1,4 +1,4 @@
-import { serve, upgradeWebSocket } from "@hono/node-server";
+import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { cors } from "hono/cors";
@@ -7,16 +7,11 @@ import { api } from "./routes.js";
 import { Server as HttpServer } from "http";
 import { initSocket } from "./sockets/index.js";
 
-const HTTP_PORT = 3000;
-
 const app = new Hono();
 app.use("*", logger());
 app.use("*", cors());
 
 app.route("/", api);
-
-// wire up WebSocket route here so upgradeWebSocket is in scope
-// app.get("/ws", buildWsHandler(upgradeWebSocket));
 
 app.get("/", (c) =>
   c.json({

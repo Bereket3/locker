@@ -1,31 +1,15 @@
-// ─── Omni Wire Protocol ───────────────────────────────────────────────────────
-//
-// Lock  → Server:  *CMDR,<code>,<imei>,<datetime>,<cmd>[,<data...>]#\n
-// Server → Lock:   \xFF\xFF*CMDS,<code>,<imei>,000000000000,<cmd>[,<data>]#\n
-//
-// Command codes:
-//   Q0  sign-in          (lock → server on connect)
-//   H0  heartbeat        (lock → server, periodic)
-//   D0  GPS position     (bidirectional: server requests, lock responds)
-//   L0  unlock           (server → lock to unlock; lock → server to confirm)
-//   L1  lock             (server → lock to lock;   lock → server to confirm)
-//   S5  status request   (server → lock)
-
 export type CmdCode = "Q0" | "H0" | "D0" | "L0" | "L1" | "S5" | string;
 
 export interface ParsedPacket {
   raw: string;
-  code: string; // device code, e.g. "OM"
+  code: string;
   imei: string;
   time: string;
   cmd: CmdCode;
-  fields: string[]; // everything after cmd
+  fields: string[];
 }
 
-// ─── Parser ───────────────────────────────────────────────────────────────────
-
 export function parsePacket(raw: string): ParsedPacket | null {
-  // strip frame header (\xFF\xFF), leading/trailing whitespace, trailing #
   const cleaned = raw
     .replace(/^\xFF\xFF/, "")
     .trim()
@@ -33,8 +17,7 @@ export function parsePacket(raw: string): ParsedPacket | null {
 
   if (!cleaned.startsWith("*CMDR,")) return null;
 
-  // *CMDR,OM,863725031194523,230615103045,H0,1,380,24
-  const body = cleaned.slice(6); // strip "*CMDR,"
+  const body = cleaned.slice(6);
   const parts = body.split(",");
 
   if (parts.length < 4) return null;
@@ -43,8 +26,6 @@ export function parsePacket(raw: string): ParsedPacket | null {
 
   return { raw, code, imei, time, cmd, fields };
 }
-
-// ─── Command builder ──────────────────────────────────────────────────────────
 
 export function buildCommand(
   imei: string,
@@ -80,7 +61,6 @@ export function buildCommand(
   return Buffer.concat([preamble, bodyBuffer]);
 }
 
-// ─── Fixed GPS Field Helper ───────────────────────────────────────────────────
 export function parseGps(fields: string[]) {
   const isValid = fields[2] === "A";
   return {
@@ -92,10 +72,6 @@ export function parseGps(fields: string[]) {
   };
 }
 
-// ─── Parsed field helpers ─────────────────────────────────────────────────────
-
-// H0 fields:  [locked, voltage_mv, csq]
-// e.g. "1,380,24"  →  locked=true, battery=3.80V, signal=24
 export function parseHeartbeat(fields: string[]) {
   return {
     locked: fields[0] === "1",
@@ -104,7 +80,6 @@ export function parseHeartbeat(fields: string[]) {
   };
 }
 
-// Q0 fields:  [csq, voltage_mv, locked]
 export function parseSignIn(fields: string[]) {
   if (fields.length === 1) {
     const voltage_mv = parseInt(fields[0]);
@@ -121,7 +96,6 @@ export function parseSignIn(fields: string[]) {
   };
 }
 
-// signal quality label
 export function signalLabel(csq: number): string {
   if (csq === 0 || csq === 99) return "none";
   if (csq < 10) return "weak";
