@@ -46,38 +46,22 @@ export function parsePacket(raw: string): ParsedPacket | null {
 
 // ─── Command builder ──────────────────────────────────────────────────────────
 
-// ─── Command builder ──────────────────────────────────────────────────────────
-
 export function buildCommand(
   imei: string,
   cmd: CmdCode,
   data = "",
   isReply = false,
 ): Buffer {
-  const now = new Date();
-  const ts = [
-    String(now.getFullYear()).slice(2),
-    String(now.getMonth() + 1).padStart(2, "0"),
-    String(now.getDate()).padStart(2, "0"),
-    String(now.getHours()).padStart(2, "0"),
-    String(now.getMinutes()).padStart(2, "0"),
-    String(now.getSeconds()).padStart(2, "0"),
-  ].join("");
+  const replyStr = isReply ? "Re," : "";
+  const dataStr = data ? `,${data}` : "";
 
-  // Only include 'Re,' if this packet is an acknowledgement reply
-  const replyPrefix = isReply ? "Re," : "";
+  const body = `*CMDS,OM,${imei},${replyStr}${cmd}${dataStr}#\n`;
 
-  const body = data
-    ? `*CMDS,OM,${imei},${ts},${replyPrefix}${cmd},${data}#\n`
-    : `*CMDS,OM,${imei},${ts},${replyPrefix}${cmd}#\n`;
-
-  const prefix = Buffer.from([0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);
-  return Buffer.concat([prefix, Buffer.from(body, "ascii")]);
+  return Buffer.from(body, "ascii");
 }
 
 // ─── Fixed GPS Field Helper ───────────────────────────────────────────────────
 export function parseGps(fields: string[]) {
-  // According to Omni Protocol: fields[2] is validity flag ('A'/'V'), fields[3] is Lat, fields[5] is Lon
   const isValid = fields[2] === "A";
   return {
     lat: isValid ? parseFloat(fields[3] ?? "0") : 0,

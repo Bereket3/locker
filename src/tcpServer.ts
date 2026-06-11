@@ -38,8 +38,8 @@ function handlePacket(raw: string): void {
         connectedAt: new Date().toISOString(),
       });
 
+      const socket = getSocket(imei);
       if (socket) {
-        // Acknowledge check-in
         socket.write(buildCommand(imei, "Q0", fields[0], true));
         console.log(`[Q0] ack sent`);
       }
